@@ -2,7 +2,7 @@ use clap::{Parser, Subcommand};
 
 #[derive(Parser)]
 #[command(
-    about = "Use Discord like a File System.\n\n> Directories always end with a `/`, if you want to address a directory it's mandatory to put a trailing `/`!", long_about = None
+    about = "Use Discord like a File System.\n\n> Directories always end with a '/', if you want to address a directory it's mandatory to put a trailing '/'!", long_about = None
 )]
 pub struct Command {
     /// What operation to execute
@@ -13,8 +13,8 @@ pub struct Command {
 #[derive(Clone, Subcommand)]
 pub enum Operation {
     #[command(about = "List filesystem contents", long_about = None)]
-    List {
-        /// Start directory (default is `/`)
+    Ls {
+        /// Start directory (default is '/')
         path: Option<String>,
     },
     #[command(about = "Upload data", long_about = None)]

@@ -20,10 +20,10 @@ async fn main() {
     let command = Command::parse();
 
     let token = std::env::var("BOT_TOKEN")
-        .expect("Requires Discord bot token in environment variable `BOT_TOKEN`");
+        .expect("Requires Discord bot token in environment variable 'BOT_TOKEN'");
     let intents = GatewayIntents::GUILD_MESSAGES | GatewayIntents::MESSAGE_CONTENT;
     let channel: u64 = std::env::var("DATA_CHANNEL_ID")
-        .expect("Requires data channel ID in environment variable `DATA_CHANNEL_ID`")
+        .expect("Requires data channel ID in environment variable 'DATA_CHANNEL_ID'")
         .parse()
         .expect("Expected a valid u64 discord channel ID");
 
@@ -35,7 +35,7 @@ async fn main() {
     nodefs.setup().await;
 
     match command.operation {
-        Operation::List { path } => nodefs.list(path).await,
+        Operation::Ls { path } => nodefs.ls(path).await,
         Operation::Upload {
             source,
             destination,

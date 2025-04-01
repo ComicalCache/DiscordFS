@@ -1,3 +1,5 @@
+use indicatif::{HumanBytes, HumanCount};
+
 use crate::{
     directory_entry::{BLOCK_INDEX_SIZE, BlockIndex, DirectoryEntry, NAME_LEN},
     node_kind::NodeKind::{self, Directory, File},
@@ -77,11 +79,13 @@ impl Node {
         assert!(self.kind == File, "Node is not a file");
         assert!(
             self.blocks.len() < BLOCK_COUNT,
-            "File will exceed the maximum block count of {BLOCK_COUNT}"
+            "File will exceed the maximum block count of {}",
+            HumanCount(BLOCK_COUNT as u64)
         );
         assert!(
             self.size <= MAX_FILE_SIZE as u64,
-            "File reported larger than maximum possible filesize of {MAX_FILE_SIZE}: `{}`",
+            "File reported larger than maximum possible filesize of {} ({MAX_FILE_SIZE}): {}",
+            HumanBytes(MAX_FILE_SIZE as u64),
             self.size
         );
 
@@ -93,7 +97,8 @@ impl Node {
         assert!(self.kind == Directory, "Node is not a directory");
         assert!(
             self.size < ENTRY_COUNT as u64,
-            "Directory will exceed the maximum entry count of {BLOCK_COUNT}"
+            "Directory will exceed the maximum entry count of {}",
+            HumanCount(ENTRY_COUNT as u64)
         );
 
         self.entries.push(DirectoryEntry::new(name, block));
@@ -147,8 +152,8 @@ impl Node {
 
         assert!(
             res.len() <= BLOCK_SIZE,
-            "Converting Node to bytes has unexpected size: `{}`",
-            res.len()
+            "Converting Node to bytes has unexpected size: {}",
+            HumanCount(res.len() as u64)
         );
 
         res
@@ -157,12 +162,13 @@ impl Node {
     pub fn from_bytes(bytes: Vec<u8>) -> Self {
         assert!(
             bytes.len() <= BLOCK_SIZE,
-            "Data exceeds maximum block size of `{}`",
-            bytes.len()
+            "Data exceeds maximum block size of {}: {}",
+            HumanCount(BLOCK_SIZE as u64),
+            HumanCount(bytes.len() as u64)
         );
         assert!(
             bytes.len() >= KIND_SIZE + SIZE_SIZE + BLOCK_INDEX_SIZE,
-            "Too little data supplied to build a Node: `{}`",
+            "Too little data supplied to build a Node: {}",
             bytes.len()
         );
 
@@ -184,8 +190,24 @@ impl Node {
         match res.kind {
             Directory => {
                 res.entries = DirectoryEntry::from_le_bytes(&bytes[CONTENT_POS..]);
+
+                assert!(
+                    res.entries.len() as u64 == res.size,
+                    "Malformed input data has inconsistent amount of entries: {} != {}",
+                    HumanCount(res.entries.len() as u64),
+                    HumanCount(res.size)
+                );
             }
             File => {
+                assert!(
+                    res.size <= MAX_FILE_SIZE as u64,
+                    "Malformed input data reports file sizes larger than the maximum of {} ({}): {} ({})",
+                    HumanBytes(MAX_FILE_SIZE as u64),
+                    HumanCount(MAX_FILE_SIZE as u64),
+                    HumanBytes(res.size),
+                    HumanCount(res.size)
+                );
+
                 res.blocks = bytes[CONTENT_POS..]
                     .as_chunks::<BLOCK_INDEX_SIZE>()
                     .0

@@ -1,7 +1,41 @@
+use std::time::Duration;
+
+use indicatif::{ProgressBar, ProgressStyle};
 use serenity::{
     Client,
     all::{ChannelId, CreateMessage, EditChannel, EditMessage, GuildChannel, MessageId},
 };
+
+pub fn progress_bar(limit: u64) -> ProgressBar {
+    let bar = ProgressBar::new(limit).with_style(
+        ProgressStyle::with_template(
+            "  [{elapsed}] {wide_bar} [{binary_bytes}/{binary_total_bytes} - {percent}%]  ",
+        )
+        .unwrap()
+        .progress_chars("##-"),
+    );
+    bar.enable_steady_tick(Duration::from_millis(100));
+
+    bar
+}
+
+pub fn spinner() -> ProgressBar {
+    let spinner = ProgressBar::new_spinner()
+        .with_style(ProgressStyle::with_template("  {msg} {spinner}  ").unwrap());
+    spinner.enable_steady_tick(Duration::from_millis(250));
+
+    spinner
+}
+
+pub fn file_delete_progress(limit: u64) -> ProgressBar {
+    let spinner = ProgressBar::new(limit).with_style(
+        ProgressStyle::with_template("  [Blocks {pos}/{len}] Deleting {msg}  ").unwrap(),
+    );
+
+    spinner.enable_steady_tick(Duration::from_millis(250));
+
+    spinner
+}
 
 pub async fn get_guild_channel(
     client: &Client,
@@ -64,7 +98,7 @@ pub async fn read_attachment(
         .await
         .unwrap_or_else(|e| {
             panic!(
-                "Failed to get message `{}` from channel `{}`: {e}",
+                "Failed to get message '{}' from channel '{}': {e}",
                 message_id.get(),
                 channel_id.get()
             )
@@ -73,7 +107,7 @@ pub async fn read_attachment(
         .first()
         .unwrap_or_else(|| {
             panic!(
-                "Message `{}` from channel `{}` should contain an attachment of block data",
+                "Message '{}' from channel '{}' should contain an attachment of block data",
                 message_id.get(),
                 channel_id.get()
             )

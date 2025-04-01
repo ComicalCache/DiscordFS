@@ -1,3 +1,5 @@
+use indicatif::HumanCount;
+
 const NAME_LEN_SIZE: usize = std::mem::size_of::<NameLen>();
 const DIRECTORY_ENTRY_SIZE: usize = NAME_LEN + BLOCK_INDEX_SIZE + NAME_LEN_SIZE;
 
@@ -34,8 +36,9 @@ impl DirectoryEntry {
         let name = name.as_ref().to_string();
         assert!(
             name.len() <= NAME_LEN,
-            "Name exceeds directory entry name size of {NAME_LEN}: `{}`",
-            name.len()
+            "Name exceeds directory entry name size of {}: {}",
+            HumanCount(NAME_LEN as u64),
+            HumanCount(name.len() as u64)
         );
 
         self.name = name;
@@ -60,8 +63,8 @@ impl DirectoryEntry {
 
         assert!(
             bytes.len() <= DIRECTORY_ENTRY_SIZE,
-            "Converting DirectoryEntry to bytes has unexpected size: `{}`",
-            bytes.len()
+            "Converting DirectoryEntry to bytes has unexpected size: {}",
+            HumanCount(bytes.len() as u64)
         );
 
         bytes
@@ -82,7 +85,9 @@ impl DirectoryEntry {
             let name_len = u64::from_le_bytes(name_len);
             assert!(
                 name_len <= NAME_LEN as u64,
-                "Name length exceeds maximum directory entry name length"
+                "Name length exceeds maximum directory entry name length of {}: {}",
+                HumanCount(NAME_LEN as u64),
+                HumanCount(name_len)
             );
             let mut name = String::with_capacity(name_len as usize);
             for _ in 0..name_len {
@@ -95,7 +100,9 @@ impl DirectoryEntry {
             }
             assert!(
                 name_len == name.len() as u64,
-                "Corrupted directory entry has mismatched name length and stored name length"
+                "Corrupted directory entry has mismatched name length and stored name length: {} != {}",
+                HumanCount(name_len),
+                HumanCount(name.len() as u64)
             );
 
             let mut block = [0; BLOCK_INDEX_SIZE];
