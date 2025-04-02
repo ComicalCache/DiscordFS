@@ -6,6 +6,7 @@ mod directory_entry;
 mod node;
 mod node_kind;
 mod nodefs;
+mod nonce_counter;
 mod util;
 
 use clap::Parser;
@@ -31,6 +32,9 @@ async fn main() {
         .await
         .expect("Failed to create client");
 
+    let key = std::env::var("AES_KEY")
+        .expect("Requires AES encryption key in environment variable 'AES_KEY'");
+
     let mut nodefs = NodeFS::new(channel, client);
     nodefs.setup().await;
 
@@ -39,11 +43,11 @@ async fn main() {
         Operation::Upload {
             source,
             destination,
-        } => nodefs.upload(source, destination).await,
+        } => nodefs.upload(source, destination, key).await,
         Operation::Download {
             source,
             destination,
-        } => nodefs.download(source, destination).await,
+        } => nodefs.download(source, destination, key).await,
         Operation::Rm {
             path,
             quick,
@@ -57,7 +61,7 @@ async fn main() {
             quick,
             source,
             destination,
-        } => nodefs.replace(source, destination, quick).await,
+        } => nodefs.replace(source, destination, quick, key).await,
         Operation::Rename { old, new } => nodefs.rename(old, new).await,
         Operation::Mkdir { path } => nodefs.mkdir(path).await,
     };

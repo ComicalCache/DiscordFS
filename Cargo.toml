@@ -9,3 +9,5 @@ serenity = "0.12.4"
 clap = { version = "4.5.34", features = ["derive"] }
 dotenvy = "0.15.7"
 indicatif = "0.17.11"
+aes-gcm-siv = { version = "0.11.1", features = ["aes"] }
+

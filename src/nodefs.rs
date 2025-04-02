@@ -1,5 +1,9 @@
 use std::cmp::min;
 
+use aes_gcm_siv::{
+    Aes256GcmSiv,
+    aead::{Aead, KeyInit},
+};
 use indicatif::{HumanBytes, HumanCount, MultiProgress};
 use serenity::{
     Client,
@@ -14,6 +18,7 @@ use crate::{
     directory_entry::BlockIndex,
     node::{self, Node},
     node_kind::NodeKind::{Directory, File},
+    nonce_counter::NonceCounter,
     util,
 };
 
@@ -78,12 +83,18 @@ impl NodeFS {
         }
     }
 
-    pub async fn upload(&self, source: String, destination: String) {
-        self.__upload(source, destination, &MultiProgress::new())
+    pub async fn upload(&self, source: String, destination: String, key: String) {
+        self.__upload(source, destination, key, &MultiProgress::new())
             .await
     }
 
-    async fn __upload(&self, source: String, destination: String, progress: &MultiProgress) {
+    async fn __upload(
+        &self,
+        source: String,
+        destination: String,
+        key: String,
+        progress: &MultiProgress,
+    ) {
         // show progress informaton
         let spinner = progress.add(util::spinner());
         spinner.set_message(format!("Uploading {source} to {destination}"));
@@ -120,6 +131,11 @@ impl NodeFS {
         // show progress bar
         let progress_bar = progress.add(util::progress_bar(filesize));
 
+        // encrypt the uploaded data
+        let cypher =
+            Aes256GcmSiv::new_from_slice(&key.as_bytes()[..32]).expect("Failed to create cypher");
+        let mut nonce = NonceCounter::new();
+
         // upload file in at most block sized chunks
         let mut read_bytes = 0;
         while read_bytes != filesize {
@@ -129,6 +145,10 @@ impl NodeFS {
                 .await
                 .expect("Error reading from file");
             read_bytes += chunk_size as u64;
+
+            let chunk = cypher
+                .encrypt(&nonce.get_nonce(), chunk.as_slice())
+                .expect("Failed to encrypt data");
 
             let block_id = self.create_data_block(chunk).await;
             file_node.push_data_block(block_id, chunk_size as u64);
@@ -146,12 +166,18 @@ impl NodeFS {
         spinner.finish_with_message(format!("Finished uploading {source}"));
     }
 
-    pub async fn download(&self, source: String, destination: String) {
-        self.__download(source, destination, &MultiProgress::new())
+    pub async fn download(&self, source: String, destination: String, key: String) {
+        self.__download(source, destination, key, &MultiProgress::new())
             .await
     }
 
-    async fn __download(&self, source: String, destination: String, progress: &MultiProgress) {
+    async fn __download(
+        &self,
+        source: String,
+        destination: String,
+        key: String,
+        progress: &MultiProgress,
+    ) {
         // show progress informaton
         let spinner = progress.add(util::spinner());
         spinner.set_message(format!("Downloading {source} to {destination}"));
@@ -169,9 +195,19 @@ impl NodeFS {
         let mut byte_progress = 0;
         let progress_bar = progress.add(util::progress_bar(source_node.size()));
 
+        // encrypt the uploaded data
+        let cypher =
+            Aes256GcmSiv::new_from_slice(&key.as_bytes()[..32]).expect("Failed to create cypher");
+        let mut nonce = NonceCounter::new();
+
         // read all data blocks and write them to the destination
         for block_id in source_node.blocks() {
             let block = self.get_data_block(*block_id).await;
+
+            // encrypt the uploaded data, using bot token as key
+            let block = cypher
+                .decrypt(&nonce.get_nonce(), block.as_slice())
+                .expect("Failed to decrypt data");
 
             file.write_all(&block)
                 .await
@@ -265,7 +301,7 @@ impl NodeFS {
         spinner.finish_with_message(format!("Moved {source}"));
     }
 
-    pub async fn replace(&self, source: String, destination: String, quick: bool) {
+    pub async fn replace(&self, source: String, destination: String, quick: bool, key: String) {
         let progress = MultiProgress::new();
 
         // show progress information
@@ -275,7 +311,8 @@ impl NodeFS {
         // FIXME: make data corruption due to errors less likely
         self.__rm(destination.clone(), quick, false, &progress)
             .await;
-        self.__upload(source, destination.clone(), &progress).await;
+        self.__upload(source, destination.clone(), key, &progress)
+            .await;
 
         spinner.finish_with_message(format!("Finished replacing {destination}"));
     }
@@ -337,9 +374,9 @@ impl NodeFS {
 }
 
 impl NodeFS {
-    async fn __list(&self, indent: usize, curr_name: &str, curr_dir: Node) {
+    async fn __list(&self, mut indent: usize, curr_name: &str, curr_dir: Node) {
         let count = match curr_dir.kind {
-            Directory => format!("{} entries", HumanCount(curr_dir.size()).to_string()),
+            Directory => format!("{} entries", HumanCount(curr_dir.size())),
             File => format!(
                 "{} ({})",
                 HumanBytes(curr_dir.size()),
@@ -355,6 +392,7 @@ impl NodeFS {
 
         // recursively list directory hierarchy
         for entry in curr_dir.entries() {
+            indent += 1;
             // show progress information
             let spinner = util::spinner();
             spinner.set_message(format!("{:indent$}Fetching {}", "", entry.get_name()));
@@ -364,7 +402,7 @@ impl NodeFS {
             // cleanup
             spinner.finish_and_clear();
 
-            Box::pin(self.__list(indent + 4, entry.get_name().as_str(), entry_node)).await;
+            Box::pin(self.__list(indent, entry.get_name().as_str(), entry_node)).await;
         }
     }
 
