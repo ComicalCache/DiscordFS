@@ -57,11 +57,6 @@ async fn main() {
             source,
             destination,
         } => nodefs.mv(source, destination).await,
-        Operation::Replace {
-            quick,
-            source,
-            destination,
-        } => nodefs.replace(source, destination, quick, key).await,
         Operation::Rename { old, new } => nodefs.rename(old, new).await,
         Operation::Mkdir { path } => nodefs.mkdir(path).await,
     };

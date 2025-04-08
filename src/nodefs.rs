@@ -301,22 +301,6 @@ impl NodeFS {
         spinner.finish_with_message(format!("Moved {source}"));
     }
 
-    pub async fn replace(&self, source: String, destination: String, quick: bool, key: String) {
-        let progress = MultiProgress::new();
-
-        // show progress information
-        let spinner = progress.add(util::spinner());
-        spinner.set_message(format!("Replacing {destination} with {source}"));
-
-        // FIXME: make data corruption due to errors less likely
-        self.__rm(destination.clone(), quick, false, &progress)
-            .await;
-        self.__upload(source, destination.clone(), key, &progress)
-            .await;
-
-        spinner.finish_with_message(format!("Finished replacing {destination}"));
-    }
-
     pub async fn rename(&self, old: String, new: String) {
         assert!(new != "/", "New name must not only be a '/'");
 

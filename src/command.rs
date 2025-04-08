@@ -53,18 +53,6 @@ pub enum Operation {
         // Destination path (must not include file/directory name that is being moved)
         destination: String,
     },
-    #[command(about = "Replace files", long_about = None)]
-    Replace {
-        /// Only delete the directory entry and leave block data of remaining blocks
-        #[arg(short, long)]
-        quick: bool,
-
-        /// Source path
-        source: String,
-
-        /// Destination path (including file name)
-        destination: String,
-    },
     #[command(about = "Rename files and directories", long_about = None)]
     Rename {
         /// Old name (must include path)
